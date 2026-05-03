@@ -27,6 +27,7 @@ class KeyboardViewModel: ObservableObject {
     @Published var isTracking: Bool = false
     @Published var keyboardMode: KeyboardMode = .kana
 
+    /// 現在のモードに応じたキー配列を返す。
     var currentRows: [[KeyItem]] {
         keyboardMode == .kana ? kanaRows : numberRows
     }
@@ -44,6 +45,7 @@ class KeyboardViewModel: ObservableObject {
     let settings: SettingsManager
     private var cancellables = Set<AnyCancellable>()
 
+    /// 依存を注入し、Combine バインディングと 60fps ドウェル判定タイマーを開始する。
     init(gazeTracker: ARFaceTrackingManager, speech: SpeechManager, settings: SettingsManager) {
         self.gazeTracker = gazeTracker
         self.speech = speech
@@ -78,12 +80,15 @@ class KeyboardViewModel: ObservableObject {
 
     deinit { updateTimer?.invalidate() }
 
+    /// TrueDepth カメラ非搭載端末では何もしない。
     func startTracking() {
         if ARFaceTrackingManager.isSupported { gazeTracker.start() }
     }
 
+    /// ARSession を停止し、バッテリー消費を抑える。
     func stopTracking() { gazeTracker.stop() }
 
+    /// 60fps で呼ばれ、視線座標がキー上に滞留した時間を計測してドウェル選択を判定する。
     private func tick() {
         let point = gazePoint
         let now = Date()
@@ -118,6 +123,7 @@ class KeyboardViewModel: ObservableObject {
         }
     }
 
+    /// キーを確定し、誤連打防止のため 0.6 秒クールダウンを設定する。
     private func activateKey(id: String) {
         guard let key = currentRows.flatMap({ $0 }).first(where: { $0.id == id }) else { return }
         performAction(key.action)
@@ -126,6 +132,7 @@ class KeyboardViewModel: ObservableObject {
         dwellProgress = 0
     }
 
+    /// `KeyAction` を実行する。テストや設定画面から直接呼び出せるよう `internal` にしている。
     func performAction(_ action: KeyAction) {
         switch action {
         case .letter(let ch):
